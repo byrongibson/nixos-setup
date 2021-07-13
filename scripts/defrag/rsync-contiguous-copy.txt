@@ -1,0 +1,17 @@
+https://unix.stackexchange.com/questions/80072/contiguous-copy-how-do-i-copy-files-contiguously/647221#647221
+
+
+If you need to do this on linux:
+
+rsync --preallocate /path/to/source/file /path/to/destination/
+
+rysnc preallocates a contiguous block of storage and copies the file into it. Works for FAT too.
+
+Just make sure the file does not already exist at the destination, or rsync won't reallocate and re-copy it. If it is, delete it, Empty Trash to make sure it's really gone, then run this command.
+
+Verify if it copied contiguously:
+
+filefrag /path/to/destination/file
+
+"1 extent found" means the file is contiguous. More than one means it's fragmented.
+

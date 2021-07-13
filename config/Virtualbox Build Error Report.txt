@@ -1,0 +1,70 @@
+Hello, I'm trying to include [virtualboxWithExtPack](https://search.nixos.org/packages?channel=21.05&show=virtualboxWithExtpack&from=0&size=50&sort=relevance&query=virtualboxwithextpack) in my build, but it fails with the 'No space left on device' error.  `nixos-rebuild dry-build` succeeds, but `nixos-rebuild dry-activate` fails with this error.
+
+This is a fresh NixOS install with plenty of both disk space and inodes.  The out-of-the-ordinary aspects are, / is on tmpfs, and the rest of the filesystem is ZFS datasets with ZFS-native encryption.
+
+Has anyone experienced this problem and have any insight into why the build is failing?
+
+(Fwiw, replacing `virtualboxWithExtPack` with `virtualbox virtualboxExtPack` also fails to build, but doesn't give specific errors why, just that dependencies failed to build.  `virtualbox` alone builds successfully.)
+
+````
+> df -h                                                                           master [80778b6] modified untracked
+Filesystem          Size  Used Avail Use% Mounted on
+devtmpfs            3.2G     0  3.2G   0% /dev
+tmpfs                32G     0   32G   0% /dev/shm
+tmpfs                16G   13M   16G   1% /run
+tmpfs                32G  432K   32G   1% /run/wrappers
+tmpfs               2.0G   46M  2.0G   3% /
+rpool/local/nix     863G   21G  843G   3% /nix
+rpool/safe/persist  843G  2.0M  843G   1% /persist
+rpool/safe/home     861G   19G  843G   3% /home
+rpool/local/opt     845G  2.1G  843G   1% /opt
+/dev/sdb1           953M   41M  912M   5% /boot
+tmpfs               6.3G  124K  6.3G   1% /run/user/1000
+
+> df -hi                                                                          master [80778b6] modified untracked
+Filesystem         Inodes IUsed IFree IUse% Mounted on
+devtmpfs             7.9M   674  7.9M    1% /dev
+tmpfs                7.9M     1  7.9M    1% /dev/shm
+tmpfs                7.9M  3.2K  7.9M    1% /run
+tmpfs                7.9M    39  7.9M    1% /run/wrappers
+tmpfs                7.9M   427  7.9M    1% /
+rpool/local/nix      1.7G  1.3M  1.7G    1% /nix
+rpool/safe/persist   1.7G   106  1.7G    1% /persist
+rpool/safe/home      1.7G  150K  1.7G    1% /home
+rpool/local/opt      1.7G   44K  1.7G    1% /opt
+/dev/sdb1               0     0     0     - /boot
+tmpfs                1.6M   157  1.6M    1% /run/user/1000
+````
+
+Some examples of the (many) 'No space left' dry-activate errors are:
+
+````
+{standard input}: Fatal error: can't close /build/VirtualBox-6.1.22/out/linux.amd64/release/obj/VirtualBox/src/widgets/UITabBar.o: No space left on device
+kmk: *** [/build/VirtualBox-6.1.22/kBuild/footer-pass2-compiling-targets.kmk:277: /build/VirtualBox-6.1.22/out/linux.amd64/release/obj/VirtualBox/src/widgets/UITabBar.o] Error 1
+The failing command:
+<too long to list>
+````
+
+````
+kBuild: Compiling VirtualBox - /build/VirtualBox-6.1.22/src/VBox/Frontends/VirtualBox/src/widgets/UIFormEditorWidget.cpp
+In file included from /nix/store/bxdqxgdqbyrjbxzmpc6xldbg0qv7vppc-qtbase-5.14.2-dev/include/QtCore/qglobal.h:105,
+                 from /nix/store/bxdqxgdqbyrjbxzmpc6xldbg0qv7vppc-qtbase-5.14.2-dev/include/QtGui/qtguiglobal.h:43,
+                 from /nix/store/bxdqxgdqbyrjbxzmpc6xldbg0qv7vppc-qtbase-5.14.2-dev/include/QtWidgets/qtwidgetsglobal.h:43,
+                 from /nix/store/bxdqxgdqbyrjbxzmpc6xldbg0qv7vppc-qtbase-5.14.2-dev/include/QtWidgets/qcombobox.h:43,
+                 from /nix/store/bxdqxgdqbyrjbxzmpc6xldbg0qv7vppc-qtbase-5.14.2-dev/include/QtWidgets/QComboBox:1,
+                 from /build/VirtualBox-6.1.22/src/VBox/Frontends/VirtualBox/src/widgets/UIFormEditorWidget.cpp:19:
+/build/VirtualBox-6.1.22/out/linux.amd64/release/obj/VirtualBox/qtmoc/UIFormEditorWidget.moc:818:1: fatal error: closing dependency file /build/VirtualBox-6.1.22/out/linux.amd64/release/obj/VirtualBox/src/widgets/UIFormEditorWidget.o.dep: No space left on device
+  818 | QT_WARNING_POP
+      | ^~~~~~~~~~~~~~
+compilation terminated.
+{standard input}: Assembler messages:
+{standard input}: Fatal error: can't write 6 bytes to section .text of /build/VirtualBox-6.1.22/out/linux.amd64/release/obj/VirtualBox/src/widgets/UIFormEditorWidget.o: 'No space left on device'
+````
+
+````
+{standard input}: Fatal error: can't close /build/VirtualBox-6.1.22/out/linux.amd64/release/obj/VirtualBox/src/widgets/UIFormEditorWidget.o: No space left on device
+kmk: *** [/build/VirtualBox-6.1.22/kBuild/footer-pass2-compiling-targets.kmk:277: /build/VirtualBox-6.1.22/out/linux.amd64/release/obj/VirtualBox/src/widgets/UIFormEditorWidget.o] Error 1
+kmk: *** Exiting with status 2
+builder for '/nix/store/63m2s3cnxmkjj947pdxb1kp7r1dsg2r8-virtualbox-6.1.22.drv' failed with exit code 2
+note: build failure may have been caused by lack of free disk space
+````

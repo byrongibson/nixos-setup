@@ -1,0 +1,6 @@
+
+
+1. Utilities for handling file fragmentation on linux:
+- https://www.wearediagram.com/blog/utilities-for-handling-disk-fragmentation-in-linux
+- use 'rsync --preallocate /path/to/source/file /path/to/destination/' to preallocate a block of space for the file to be copied, avoiding fragmentation.
+- verify contiguous with 'filefrag /path/to/file/name'.  "1 extent found" means contig, more than 1 means its fragmented.

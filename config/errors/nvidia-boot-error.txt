@@ -1,0 +1,18 @@
+nvidia boot error:  
+
+       Starting WPA supplicant...
+[ OK ] Started WPA supplicant.
+[30.007919] ieee80211 phy0: brcmf_inetaddr_changed: fail to get arp ip table err:-52
+
+
+$> nix-shell -p nix-info --run "nix-info -m"                                     
+these paths will be fetched (0.05 MiB download, 0.28 MiB unpacked):
+  /nix/store/lp90qhw19dcp79cnlicjg09llgh7dzsz-bash-interactive-4.4-p23-dev
+copying path '/nix/store/lp90qhw19dcp79cnlicjg09llgh7dzsz-bash-interactive-4.4-p23-dev' from 'https://cache.nixos.org'...
+ - system: `"x86_64-linux"`
+ - host os: `Linux 5.10.43, NixOS, 21.05.993.93963c27b93 (Okapi)`
+ - multi-user?: `yes`
+ - sandbox: `yes`
+ - version: `nix-env (Nix) 2.3.12`
+ - nixpkgs: `/nix/var/nix/profiles/per-user/root/channels/nixos`
+

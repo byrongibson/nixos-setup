@@ -1,0 +1,50 @@
+https://blog.programster.org/ubuntu-set-up-rsync-server
+https://www.jveweb.net/en/archives/2011/01/running-rsync-as-a-daemon.html
+https://linux.die.net/man/5/rsyncd.conf
+https://help.ubuntu.com/community/rsync
+
+sudo systemctl enable rsync
+sudo systemctl start rsync
+sudo systemctl stop rsync
+
+# put the following into /etc/rsyncd.conf
+----
+max connections = 2
+#timeout = 300
+lock file = /var/run/rsync.lock
+log file = /var/log/rsyncd.log
+pid file = /var/run/rsyncd.pid
+
+[share]
+comment = Public Share
+path = /home/share
+read only = no
+list = yes
+uid = nobody
+gid = nogroup
+auth users = bgibson
+use chroot = false
+secrets file = /etc/rsyncd.secrets
+
+[home]
+comment = Home
+path = /home/share
+read only = no
+list = yes
+uid = bgibson
+gid = bgibson
+auth users = bgibson
+use chroot = false
+secrets file = /etc/rsyncd.secrets
+
+[media]
+comment = Media
+path = /media/bgibson/DATA
+read only = no
+list = yes
+uid = bgibson   
+gid = bgibson
+auth users = bgibson
+use chroot = false
+secrets file = /etc/rsyncd.secrets
+

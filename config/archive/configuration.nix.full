@@ -1,0 +1,572 @@
+# Edit this configuration file to define what should be installed on
+# your system.  Help is available in the configuration.nix(5) man page
+# and in the NixOS manual (accessible by running ‘nixos-help’).
+
+{ config, pkgs, lib, ... }:
+
+################################################################################
+# System 
+################################################################################
+
+{
+  imports =
+    [ 
+      ./hardware-configuration.nix
+    ];
+
+  # Default nixPath: 
+  # https://search.nixos.org/options?channel=unstable&show=nix.nixPath
+  nix.nixPath =
+    [
+      "nixpkgs=/nix/var/nix/profiles/per-user/root/channels/nixos"
+      "nixos-config=/persist/etc/nixos/configuration.nix"
+      "/nix/var/nix/profiles/per-user/root/channels"
+    ];
+    
+  # Reboot after rebuilding to prevent possible clash with other kernel modules
+  nixpkgs.config = { 
+    allowUnfree = true;   # Enable non-free packages (Nvidia driver, etc)
+  };
+
+  boot.supportedFilesystems = [ "ext4" "fat16" "fat32" "ntfs" "zfs" ];
+  
+  # Enable to make nixos-rebuild snapshot configuration.nix to 
+  # /run/current-system/configuration.nix
+  # With this enabled, every new system profile contains the configuration.nix
+  # that created it.  Useful in troubleshooting broken build, just diff 
+  # current vs prior working configurion.  This will only copy 
+  # configuration.nix and no other imported files, so put all config in this 
+  # file.
+  # https://search.nixos.org/options?21.05&show=system.copySystemConfiguration
+  system.copySystemConfiguration = true;
+
+  # This value determines the NixOS release from which the default
+  # settings for stateful data, like file locations and database versions
+  # on your system were taken. It‘s perfectly fine and recommended to leave
+  # this value at the release version of the first install of this system.
+  # Before changing this value read the documentation for this option
+  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
+  system.stateVersion = "21.05"; # Did you read the comment?
+  
+  # Select internationalisation properties.
+  i18n.defaultLocale = "en_US.UTF-8";
+  console = {
+    font = "Lat2-Terminus16";
+    keyMap = "us";
+  };
+  
+  time.timeZone = "America/Los_Angeles";
+
+################################################################################
+# Boot Loader
+################################################################################
+
+  # Use the systemd-boot EFI boot loader with Grub.
+  boot.loader.systemd-boot.memtest86.enable = true;
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.grub.enable = true;
+  boot.loader.grub.version = 2;
+  boot.loader.grub.efiSupport = true;
+  boot.loader.grub.efiInstallAsRemovable = false;
+  boot.loader.efi.efiSysMountPoint = "/boot";
+  boot.loader.efi.canTouchEfiVariables = true;
+  # Define on which hard drive you want to install Grub.
+  boot.loader.grub.device = "nodev"; # or "/dev/sdx", or "nodev" for efi only
+  #https://nixos.wiki/wiki/NixOS_on_ZFS
+  boot.loader.grub.copyKernels = true;
+
+  # Set the disk’s scheduler to none. ZFS takes this step automatically 
+  # if it controls the entire disk, but since it doesn't control the /boot 
+  # partition we must set this explicitly.
+  # source: https://grahamc.com/blog/nixos-on-zfs
+  boot.kernelParams = [ "elevator=none" ];
+
+################################################################################
+# ZFS
+################################################################################
+  
+  boot.zfs.requestEncryptionCredentials = true;
+
+  services.zfs = {
+    autoScrub.enable = true;
+    autoSnapshot.enable = true;
+    # TODO: autoReplication
+  };
+
+  # rollback root dataset to blank on reboot
+  # source: https://grahamc.com/blog/erase-your-darlings
+  #boot.initrd.postDeviceCommands = lib.mkAfter ''
+  #  zfs rollback -r ${ZFS_BLANK_SNAPSHOT}
+  #'';
+
+################################################################################
+# Networking
+################################################################################
+
+  networking.hostId = "a5769739"; # Define your hostId, required by ZFS.  head -c 8 /etc/machine-id
+  #networking.hostId = "$(head -c 8 /etc/machine-id)";
+  networking.hostName = "z11pa-d8"; # Define your hostname.
+
+  # The global useDHCP flag is deprecated, therefore explicitly set to false 
+  # here.  Per-interface useDHCP will be mandatory in the future, so this 
+  # generated config replicates the default behaviour.
+  networking.useDHCP = false;
+  networking.interfaces.eno1.useDHCP = true;
+  networking.interfaces.eno2.useDHCP = true;
+  networking.interfaces.eno3.useDHCP = true;
+  networking.interfaces.eno4.useDHCP = true;
+  networking.interfaces.wlp175s0.useDHCP = true;
+  
+  # Configure network proxy if necessary
+  # networking.proxy.default = "http://user:password@proxy:port/";
+  # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
+  
+  # Open ports in the firewall.
+  # networking.firewall.allowedTCPPorts = [ ... ];
+  # networking.firewall.allowedUDPPorts = [ ... ];
+  # Or disable the firewall altogether.
+  # networking.firewall.enable = false;
+  #or
+  #networking.firewall.enable = true;
+  #networking.firewall.trustedInterfaces = [ "lo" "docker0" "enp4s0" ];
+  #networking.firewall.allowedTCPPorts = [ 8888 ]; # for testing stuff
+  
+  #Erase Your Darlings
+  # https://github.com/barrucadu/nixfiles/blob/master/hosts/nyarlathotep/configuration.nix
+  # https://grahamc.com/blog/erase-your-darlings
+  
+  #1. NetworkManager/system-connections: requires /persist/etc/NetworkManager/system-connections
+  environment.etc."NetworkManager/system-connections" = {
+    source = "/persist/etc/NetworkManager/system-connections/";
+  };
+
+  #2. Wireguard:  requires /persist/etc/wireguard/
+  networking.wireguard.interfaces.wg0 = {
+    generatePrivateKeyFile = true;
+    privateKeyFile = "/persist/etc/wireguard/wg0";
+  };
+  
+  #3. Bluetooth: requires /persist/var/lib/bluetooth
+  #4. ACME certificates: requires /persist/var/lib/acme
+  systemd.tmpfiles.rules = [
+    "L /var/lib/bluetooth - - - - /persist/var/lib/bluetooth" 
+    "L /var/lib/acme - - - - /persist/var/lib/acme"
+  ];
+  
+
+################################################################################
+# SSH
+################################################################################
+
+  services.openssh = {
+    enable = true;
+    permitRootLogin = "no";
+    passwordAuthentication = false;
+    hostKeys =
+      [
+        {
+          path = "/persist/etc/ssh/ssh_host_ed25519_key";
+          type = "ed25519";
+        }
+        {
+          path = "/persist/etc/ssh/ssh_host_rsa_key";
+          type = "rsa";
+          bits = 4096;
+        }
+      ];
+  };
+  
+################################################################################
+# TODO: Yggdrasil
+################################################################################
+
+  # https://nixos.org/manual/nixos/unstable/index.html#module-services-networking-yggdrasil-configuration
+  # Yggdrasil is an early-stage implementation of a fully end-to-end encrypted, self-arranging IPv6 network. 
+
+################################################################################
+# Samba
+################################################################################
+
+
+
+
+################################################################################
+# Borg Backups
+################################################################################
+
+# https://nixos.org/manual/nixos/unstable/index.html#opt-services-backup-borgbackup-local-directory
+#  {
+#    opt.services.borgbackup.jobs = {
+#      { rootBackup = {
+#          paths = "/";
+#          exclude = [ "/nix" "/path/to/local/repo" ];
+#          repo = "/path/to/local/repo";
+#          doInit = true;
+#          encryption = {
+#            mode = "repokey";
+#            passphrase = "secret";
+#          };
+#          compression = "auto,lzma";
+#          startAt = "weekly";
+#        };
+#      }
+#    };
+#  }
+  
+################################################################################
+# Graphics & Desktop
+################################################################################
+  
+  # this doesn't seem to be needed, leaving here just in case something needs it
+  #{ nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+  #    "nvidia-x11"
+  #  ];
+  #}
+  
+  hardware.opengl = {
+  	driSupport = true; # install and enable Vulkan: https://nixos.org/manual/nixos/unstable/index.html#sec-gpu-accel
+  	#extraPackages = [ vaapiIntel libvdpau-va-gl vaapiVdpau intel-ocl ];  # if needed
+  };
+  
+  # Enable X11 + Nvidia
+  # https://nixos.org/manual/nixos/unstable/index.html#sec-gnome-gdm
+  services.xserver = {
+    enable = true; # enable X11
+    layout = "us";
+    xkbOptions = "eurosign:e";
+    videoDrivers = ["nvidia"];
+  };
+
+  # Enable gdm + GNOME3
+  services.xserver = {
+    desktopManager.gnome3.enable = true;
+    displayManager.gdm = {
+      enable = true;
+      #wayland = true;  # https://www.reddit.com/r/NixOS/comments/ndi68c/is_there_a_way_to_start_gnome3_in_wayland_mode/
+      # or 
+      #nvidiaWayland = true;  # may not work, see: https://drewdevault.com/2017/10/26/Fuck-you-nvidia.html
+    };
+  };
+  #services.gnome.core-developer-tools.enable = true;
+  
+  # Or ElementaryOS's Pantheon Desktop
+  # Cannot enable both Pantheon and Gnome, so one must be commented out at all
+  # times.  https://nixos.org/manual/nixos/unstable/index.html#sec-pantheon-faq
+  #services.xserver = {
+  #	 desktopManager.pantheon = {
+  #	   enable = true;
+  #	   extraWingpanelIndicators = [];
+  #    extraSwitchboardPlugs = [];
+  #  };
+  #};	
+  
+  # Tiling WM
+  #services.xserver.windowManager.xmonad.enable = true;
+  #services.xserver.windowManager.twm.enable = true;
+  #services.xserver.windowManager.icewm.enable = true;
+  #services.xserver.windowManager.i3.enable = true;
+  
+################################################################################
+# Sound
+################################################################################
+  
+  # Enable sound.
+  sound.enable = true;
+  hardware.pulseaudio.enable = true;
+
+################################################################################
+# Print
+################################################################################
+
+  # Enable CUPS to print documents.
+  services.printing.enable = true;
+
+################################################################################
+# Input
+################################################################################
+
+  # Enable touchpad support (enabled default in most desktopManager).
+  # services.xserver.libinput.enable = true;
+  
+  hardware.openrazer = {
+  	enable = true; # Razer hardware support
+  	#mouseBatteryNotifier = true;
+  	#keyStatistics = true;
+  	#verboseLogging = true;
+  	#syncEffectsEnabled = true;
+  	#devicesOffOnScreensaver = true;
+  	#mouseBatteryNotifier = true;
+  };
+  
+################################################################################
+# Aliases
+################################################################################
+  
+  #TODO: system aliases
+  #alias ls="ls -al --color=auto"
+  #alias use="nix-shell -p"
+
+################################################################################
+# Users
+################################################################################
+
+  users = {
+    mutableUsers = true;
+    #defaultUserShell = "/var/run/current-system/sw/bin/zsh";
+    users = {
+      root = {
+        #initialHashedPassword = "${ROOT_PASSWORD_HASH}";
+        # https://discourse.nixos.org/t/how-to-disable-root-user-account-in-configuration-nix/13235/3
+        hashedPassword = "!";  # disable root logins, nothing hashes to !
+      };
+
+      bgibson = {
+      	isNormalUser = true;
+        createHome = true;
+        home = "/home/bgibson";
+        initialPassword = "password";
+        #initialHashedPassword = "${USER_PASSWORD_HASH}";
+		#uid = 1000;
+		#group = "users";
+		extraGroups = [ "wheel" "networkmanager" ];
+		useDefaultShell = true;
+        #openssh.authorizedKeys.keys = [ "${AUTHORIZED_SSH_KEY}" ];
+      };
+    };
+  };
+  
+################################################################################
+# Applications
+################################################################################
+
+  # Some programs need SUID wrappers, can be configured further or are
+  # started in user sessions.
+  programs.mtr.enable = true;
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
+  };
+  
+  environment.systemPackages = with pkgs;
+    [
+    	# core
+    	nix-index lorri direnv niv 
+    	parted gparted gptfdisk 
+    	strace nfstrace dnstracer 
+    	bottom htop iotop bpytop procs ncdu nload wavemon ripgrep cron glances conky 
+    	pciutils uutils-coreutils bat exa du-dust fd dfc diskonaut trash-cli p7zip 
+    	colordiff icdiff delta grc fzf skim lf nnn 
+    	
+    	#Editors
+    	vim powerline-rs vifm amp kakoune #(The Nano editor is also installed by default).
+    	emacs texinfo hexdino xxv 
+
+		# gnome
+    	gnome.gnome-tweak-tool 
+    	gnome.gnome-disk-utility 
+    	deja-dup 
+    	
+    	# Browser
+    	firefox chromium brave nyxt #opera
+    	
+    	# System
+    	python39 go rustc cargo 
+
+		# Terminal
+    	alacritty kitty st termpdfpy # rxvt insecure, exclude
+    	zsh oh-my-zsh mosh nushell wezterm 
+    	ncurses chroma 
+ 		
+		# Secure Comms & Networking
+		tailscale 
+    	
+ 		#File transfer
+ 		wget uget magic-wormhole rsync syncthing zsync
+ 		
+ 		# Backups 
+		grsync duplicity duply 
+		#pcloud 
+		    	
+    	# Git
+    	git git-extras git-lfs gitui lazygit delta 
+ 		
+ 		#Secrets
+ 		keepassxc gopass sops 
+
+    	#Notes 
+    	joplin joplin-desktop simplenote nvpy standardnotes tomboy gnote 
+    	    	 		
+ 		#IRC & chat 
+    	irssi znc lynx tox-node weechat hexchat 
+    	#discord ripcord 
+		#element-desktop 
+		#keybase keybase-gui kbfs 
+		#signal-desktop 
+		#slack-dark 
+		#tdesktop 
+		#zulip zulip-term 
+		#pidgin-with-plugins purple-slack purple-discord telegram-purple toxprpl  
+    	
+    	#PDF
+    	#pdfcrack pdfslicer pdftag pdfdiff pdfgrep pdfmod pdfarranger zathura 
+    	
+    	#DBUS
+    	#dbus dbus_lib dbus_tools dbus_daemon dbus-map dbus-broker 
+    	
+    	#photos
+    	#digikam darktable 
+    	
+    	# extra network tools
+    	ncat nmap nmap-graphical nmapsi4 rustscan dbus-map 
+    	shadowsocks-rust 
+    	
+    	# hardware support
+    	openrazer-daemon 
+    	
+    	# Office
+    	#gnucash libreoffice onlyoffice-bin Scribus 
+    	
+    	# LaTeX
+    	texstudio groff sent 
+    	
+    	# Mail
+    	#thunderbird mutt 
+    	
+    	# Research
+    	zotero 
+    	
+    	# CAD
+    	#freecad
+    	
+    	# Graphics
+    	#gimp obs-studio imagemagick krita inkscape-with-extensions akira-unstable  #and get Photogimp plugin from github
+    	#blender natron # also check out Fusion, not FOSS but free
+    	#freecad gravit 
+    	
+		# Audio
+    	#audacity lmms ardour 
+    	
+    	# Music
+    	#audacious moc mpd ncmpcpp vimpc 
+    	#mopidy mopidy-mpd mopidy-mpris mopidy-local mopidy-youtube mopidy-podcast mopidy-soundcloud
+    	#spotify mopidy-spotify ncspot spotify-tui 
+		#digitalbitbox
+    	
+    	#CD / DVD
+    	#brasero handbrake lxdvdrip 
+    	
+    	# Download
+    	#mimms youtube-dl tartube 
+    	#rtorrent qbittorrent #megasync 
+    	
+    	# WINE 
+    	#wine winetricks protontricks lutris-unwrapped ajour 
+
+		# VNC    	
+    	#nomachine-client x2goclient tigervnc turbovnc
+    	
+    	# Tiling WMs
+    	# dwm dwm-status dmenu 
+    	# i3 
+    	# xmonad 
+    	
+    	# development
+    	# use nix-shell for different dev environments
+    	# https://discourse.nixos.org/t/how-do-i-install-rust/7491/8?u=bgibson
+		#lxd 
+		#deno 
+		#nodejs 
+		#erlangR24 elixir gleam lfe 
+		# haskell: 
+		# - https://nixos.wiki/wiki/Haskell
+		# - https://notes.srid.ca/haskell-nix
+		#ghc cabal-install cabal2nix stylish-cabal stack haskell-language-server 
+		#rust: 
+		# - https://nixos.wiki/wiki/Rust
+		# - https://christine.website/blog/how-i-start-nix-2020-03-08
+		#rustc rustfmt cargo rust-analyzer 
+    	
+    	# server
+    	
+    ];
+    
+  # Plotinius
+  # https://nixos.org/manual/nixos/unstable/index.html#module-program-plotinus
+  # Plotinus is a searchable command palette in every modern GTK application. 
+  #programs.plotinus.enable = true;
+    
+  #enable Steam: https://linuxhint.com/how-to-instal-steam-on-nixos/
+  #programs.steam.enable = true;
+  
+  # Weechat IRC client
+  # Runs in detached screen;
+  # Re-attach with:  screen -x weechat/weechat-screen
+  # https://nixos.org/manual/nixos/unstable/index.html#module-services-weechat
+  services.weechat.enable = true;
+  programs.screen.screenrc = ''
+    multiuser on
+    acladd normal_user
+  '';
+    
+  # tox-node
+  # https://github.com/tox-rs/tox-node
+  services.tox-node = {
+    enable = true;
+    logType = "Syslog";
+    keysFile = "/var/lib/tox-node/keys";
+    udpAddress = "0.0.0.0:33445"; 
+    tcpAddresses = [ "0.0.0.0:33445" ];
+    tcpConnectionLimit = 8192;
+    lanDiscovery = true;
+    threads = 1;
+    motd = "Hi from tox-rs! I'm up {{uptime}}. TCP: incoming {{tcp_packets_in}}, outgoing {{tcp_packets_out}}, UDP: incoming {{udp_packets_in}}, outgoing {{udp_packets_out}}";
+  };
+  
+  # Trezor
+  #https://nixos.org/manual/nixos/unstable/index.html#trezor
+  #services.trezord.enable = true;
+  
+  # Digital Bitbox
+  #https://nixos.org/manual/nixos/unstable/index.html#module-programs-digitalbitbox
+  #programs.digitalbitbox.enable = true;
+  #hardware.digitalbitbox.enable = true;
+  
+  # Flatpak: https://nixos.org/manual/nixos/unstable/index.html#module-services-flatpak
+  services.flatpak.enable = true;
+  
+  # ACME certificates: https://nixos.org/manual/nixos/unstable/index.html#module-security-acme
+  security.acme = {
+  	acceptTerms = true;
+  	email = "fbg111@gmail.com";
+  };
+  
+  # Oh-my-zsh: 
+  programs.zsh.ohMyZsh = {
+    enable = true;
+    plugins = [ "ansible" "ant" "aws" "branch" "cabal" "cargo" "colored-man-pages" "colorize" "command-not-found" "common-aliases" "copydir" "cp" "copyfile" "docker" "docker-compose" "docker-machine" "dotenv" "emacs" "fzf" "git" "git-extras" "git-lfs" "golang" "grc" "history" "lxd" "man" "mosh" "mix" "nmap" "node" "npm" "npx" "nvm" "pass" "pip" "pipenv" "python" "ripgrep" "rsync" "safe-paste" "scd" "screen" "stack" "systemadmin" "systemd" "tig" "tmux" "tmux-cssh" "ufw" "urltools" "vi-mode" "vscode" "wd" "z" "zsh-interactive-cd" ];
+    theme = "juanghurtado";
+    #theme = "jonathan"; 
+    # themes w/ commit hash: peepcode simonoff smt theunraveler sunrise sunaku 
+    # cool themes: linuxonly agnoster blinks crcandy crunch essembeh flazz frisk gozilla itchy gallois eastwood dst clean bureau bira avit nanotech nicoulaj rkj-repos ys darkblood fox 
+  };
+  
+  # Emacs server
+  # https://nixos.org/manual/nixos/unstable/index.html#module-services-emacs-running
+  # Ensure that the Emacs server is enabled for your user's Emacs 
+  # configuration, either by customizing the server-mode variable, or by 
+  # adding (server-start) to ~/.emacs.d/init.el. 
+  # To start the daemon, execute the following:
+  #nixos-rebuild switch  # activates the new configuration.nix
+  #systemctl --user daemon-reload  # force systemd reload
+  #systemctl --user start emacs.service  # start the Emacs daemon
+  # To connect to the emacs daemon, run one of the following:
+  #emacsclient FILENAME
+  #emacsclient --create-frame  # opens a new frame (window)
+  #emacsclient --create-frame --tty  # opens a new frame on the current terminal
+  #services.emacs = {
+  #	enable = true;
+  #	defaultEditor = true; # (make sure no EDITOR var in .profile, .zshenv, etc)
+  #	package = import /home/bgibson/.emacs.d { pkgs = pkgs; };
+  #};
+
+}
