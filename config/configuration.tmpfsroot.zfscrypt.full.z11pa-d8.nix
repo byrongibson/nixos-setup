@@ -100,23 +100,23 @@
     zfs = {
       requestEncryptionCredentials = true;  # enable if using ZFS encryption, ZFS will prompt for password during boot
     };
-	loader = {
+    loader = {
       systemd-boot.enable = true;
       efi = {
-      	canTouchEfiVariables = true;  # must be disabled if efiInstallAsRemovable=true
-      	#efiSysMountPoint = "/boot/efi";  # using the default /boot for this config
+        canTouchEfiVariables = true;  # must be disabled if efiInstallAsRemovable=true
+        #efiSysMountPoint = "/boot/efi";  # using the default /boot for this config
       };
       grub = {
-      	version = 2;
-      	enable = true;
-		device = "nodev";  # "/dev/sdx", or "nodev" for efi only
-      	efiSupport = true;
-      	efiInstallAsRemovable = true;  # grub will use efibootmgr 
-      	zfsSupport = true;
-		copyKernels = true;  # https://nixos.wiki/wiki/NixOS_on_ZFS
-		# mirroredBoots on z11pa-d8
-  		# https://discourse.nixos.org/t/nixos-on-mirrored-ssd-boot-swap-native-encrypted-zfs/9215/5
-		mirroredBoots = [
+        version = 2;
+        enable = true;  
+        device = "nodev";  # "/dev/sdx", or "nodev" for efi only
+        efiSupport = true;
+        #efiInstallAsRemovable = true;  # grub will use efibootmgr 
+        zfsSupport = true;
+        copyKernels = true;  # https://nixos.wiki/wiki/NixOS_on_ZFS
+        # mirroredBoots on z11pa-d8
+        # https://discourse.nixos.org/t/nixos-on-mirrored-ssd-boot-swap-native-encrypted-zfs/9215/5
+        mirroredBoots = [
           {
             devices = [ "nodev" ];
             path = "/boot1";
