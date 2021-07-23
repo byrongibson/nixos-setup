@@ -9,7 +9,7 @@
       (modulesPath + "/installer/scan/not-detected.nix")
     ];
 
-  boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "usb_storage" "usbhid" "sd_mod" "sr_mod" ];
+  boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "ehci_pci" "nvme" "usbhid" "usb_storage" "sd_mod" "sr_mod" ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
@@ -45,6 +45,12 @@
     { device = "rpool/safe/persist";
       fsType = "zfs";
     };
+        
+  #fileSystems."/zdata1" =
+  #  { device = "dpool1/zdata1";
+  #    fsType = "zfs";
+  #    options = [ "defaults" "nofail" "x-gvfs-show" ];
+  #  };
 
   fileSystems."/boot" =
     { device = "/dev/disk/by-uuid/9F0B-2D34";
@@ -64,7 +70,7 @@
   # The NixOS docs put these properties in configuration.nix, but I prefer to 
   # put all machine-specific properties in hardware-configuration.nix instead,
   # to keep configuration.nix maximally portable across different machines.
-  networking.hostId = "0a3b60ed";
+  networking.hostId = "0a3b60ed";  # "$(head -c 8 /etc/machine-id)"; required by ZFS
   networking.hostName = "z11pa-d8";
   boot.zfs.devNodes = "/dev/disk/by-id/wwn-0x5001b448b94488f8-part2";
   

@@ -16,6 +16,7 @@
 # https://grahamc.com/blog/erase-your-darlings
 # https://elis.nu/blog/2020/05/nixos-tmpfs-as-root/
 # https://elis.nu/blog/2020/06/nixos-tmpfs-as-home/
+# https://elis.nu/blog/2019/08/encrypted-zfs-mirror-with-mirrored-boot-on-nixos/
 # https://www.reddit.com/r/NixOS/comments/g9wks6/root_on_tmpfs/
 # https://www.reddit.com/r/NixOS/comments/o1er2p/tmpfs_as_root_but_without_hardcoding_your/
 
@@ -55,8 +56,10 @@
 # Some ZFS properties cannot be changed after the pool and/or datasets are created.  Some discussion on this:
 # https://www.reddit.com/r/zfs/comments/nsc235/what_are_all_the_properties_that_cant_be_modified/
 # `ashift` is one of these properties, but is easy to determine.  Use the following commands:
+# lshw -class disk
 # disk logical blocksize:  `$ sudo blockdev --getbsz /dev/sdX` (ashift)
 # disk physical blocksize: `$ sudo blockdev --getpbsz /dev/sdX` (not ashift but interesting)
+
 
 #set -euo pipefail
 set -e
@@ -176,6 +179,32 @@ partprobe "$DISK"
 sleep 1
 pprint "Done."
 echo # move to a new line
+
+# TODO: use sfdisk to clone partition scheme to second disk.  naming gets complicated, may need to refactor script
+# optionally, clone $DISK1 partition scheme to $DISK2
+#read -p "> Do you want to clone this partition scheme to another drive? (Y/N): " confirm # && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1
+#if [ $confirm == [yY] || $confirm == [yY][eE][sS] ]
+#then
+#	pprint "> Select disk to clone to: "
+#	select ENTRY in $(ls /dev/disk/by-id/);
+#	do
+#		DISK2="/dev/disk/by-id/$ENTRY"
+#		read -p "> You selected '$DISK2'.  Is this correct?  (Y/N): " confirm ## && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1
+#		if [ $confirm == [yY] || $confirm == [yY][eE][sS] ]
+#		then
+#			echo "Cloning $DISK partitions to $DISK2 ..."
+#			sleep 1
+#			sfdisk --dump $DISK | sfdisk $DISK2
+#			sleep 1
+#			mkfs.vfat -F 32 -n ${BOOTNAME2^^} "$BOOT2"
+#			echo "Done."
+#		break
+#	done
+#fi
+#echo # move to a new line
+
+# DISK1 ashift
+
 
 pprint "Formatting complete."
 pprint "Next, create and mount ZFS pools and boot configuration."

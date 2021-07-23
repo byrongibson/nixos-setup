@@ -26,8 +26,8 @@ if [[ "$@" =~ 'dry' || "$@" =~ 'rollback' ]]
 then
 	pprint "Dry run, skipping ZFS snapshot."
 else
-	pprint "nix-collect-garbage $@ requested, creating zfs snapshot rpool/safe@pre-collect-garbage-snap-$timestamp ... ";
-	zfs snapshot -r rpool/safe@pre-rebuild-snap-$(date +%Y%m%d-%T-%Z);
+	pprint "nix-collect-garbage $@ requested, creating zfs snapshot rpool@pre-collect-garbage-snap-$timestamp ... ";
+	zfs snapshot -r rpool@pre-collect-garbage-snap-$(date +%Y%m%d-%T-%Z);
 	sleep 5
 fi
 

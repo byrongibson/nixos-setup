@@ -9,7 +9,7 @@
       (modulesPath + "/installer/scan/not-detected.nix")
     ];
 
-  boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "usb_storage" "usbhid" "sd_mod" "sr_mod" ];
+  boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "ehci_pci" "nvme" "usbhid" "usb_storage" "sd_mod" "sr_mod" ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
@@ -19,6 +19,7 @@
   # Tmpfs size can be whatever you want it to be, based on your available RAM. 
   # A fresh install of NixOS + Gnome4 uses just over 200MB in Tmpfs, so 
   # size=512M is sufficient, or 1GB or 2GB if you may need more headroom. 
+
   fileSystems."/" =
     { device = "tmpfs";
       fsType = "tmpfs";
@@ -39,14 +40,15 @@
     { device = "rpool/safe/home";
       fsType = "zfs";
     };
-
+    
   fileSystems."/persist" =
     { device = "rpool/safe/persist";
       fsType = "zfs";
     };
 
   fileSystems."/boot" =
-    { device = "/dev/disk/by-uuid/3DA8-17A1";
+    { device = "/dev/disk/by-uuid/D9CB-D331";
+      #device = "/dev/disk/by-id/nvme-eui.002538b11151689a-part1
       fsType = "vfat";
     };
 
@@ -64,8 +66,10 @@
   # put all machine-specific properties in hardware-configuration.nix instead,
   # to keep configuration.nix maximally portable across different machines.
   networking.hostName = "z10pe-d8";  
-  networking.hostId = "376f5ee7";  # required by zfs
+  networking.hostId = "a6627696";  # "$(head -c 8 /etc/machine-id)"; required by ZFS
   boot.zfs.devNodes = "/dev/disk/by-id/nvme-eui.002538b11151689a-part2";
+  #boot.zfs.devNodes = "/dev/disk/by-uuid/"
+  #boot.zfs.devNodes = "/dev/disk/by-id/"
   
   # networking.interfaces not recognized in this file, toubleshoot.
   # also need to move networking.interfaces = { ... }; section to hardware-configuration.nix

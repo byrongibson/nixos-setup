@@ -411,7 +411,8 @@
   	# system core (use these for a minimal first install)
   	efibootmgr 
   	nix-index 
-  	pciutils uutils-coreutils sysfsutils 
+  	pciutils sysfsutils progress
+  	coreutils-full cryptsetup
     parted gparted gptfdisk 
   	openssh ssh-copy-id ssh-import-id avahi 
   	htop ncdu lshw 

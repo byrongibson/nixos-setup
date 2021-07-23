@@ -20,6 +20,7 @@
 # https://grahamc.com/blog/erase-your-darlings
 # https://elis.nu/blog/2020/05/nixos-tmpfs-as-root/
 # https://elis.nu/blog/2020/06/nixos-tmpfs-as-home/
+# https://elis.nu/blog/2019/08/encrypted-zfs-mirror-with-mirrored-boot-on-nixos/
 # https://www.reddit.com/r/NixOS/comments/g9wks6/root_on_tmpfs/
 # https://www.reddit.com/r/NixOS/comments/o1er2p/tmpfs_as_root_but_without_hardcoding_your/
 
@@ -60,6 +61,7 @@
 # Some ZFS properties cannot be changed after the pool and/or datasets are created.  Some discussion on this:
 # https://www.reddit.com/r/zfs/comments/nsc235/what_are_all_the_properties_that_cant_be_modified/
 # `ashift` is one of these properties, but is easy to determine.  Use the following commands:
+# lshw -class disk
 # disk logical blocksize:  `$ sudo blockdev --getbsz /dev/sdX` (ashift)
 # disk physical blocksize: `$ sudo blockdev --getpbsz /dev/sdX` (not ashift but interesting)
 
@@ -167,6 +169,7 @@ zpool create -f -t $POOL -m none -R /mnt	\
 	-O encryption=on			\
 	-O keylocation=prompt		\
 	-O keyformat=passphrase 	\
+	-O mountpoint=none			\
 	-O canmount=off				\
 	-O atime=off				\
 	-O relatime=on 				\
@@ -174,14 +177,14 @@ zpool create -f -t $POOL -m none -R /mnt	\
 	-O dnodesize=auto			\
 	-O xattr=sa					\
 	-O normalization=formD		\
-	$POOL $ZROOT1
+	$POOL mirror $ZROOT1 $ZROOT2
 pprint "Done."
 echo # move to a new line
 
 pprint "Creating ZFS datasets nix, opt, boot, home, persist, reserved ..."
 zfs create -p -v -o secondarycache=none -o mountpoint=legacy ${POOL}/local/nix
 zfs create -p -v -o secondarycache=none -o mountpoint=legacy ${POOL}/local/opt
-#zfs create -p -v -o secondarycache=none -o mountpoint=legacy ${POOL}/local/boot
+#zfs create -p -v -o secondarycache=none -o mountpoint=legacy ${POOL}/local/boot  # only if putting /boot on zfs, which is not well supported yet
 zfs create -p -v -o secondarycache=none -o mountpoint=legacy ${POOL}/safe/home
 zfs create -p -v -o secondarycache=none -o mountpoint=legacy ${POOL}/safe/persist
 # "reserved is an unused, unmounted 2GB dataset.  In case the rest of the pool runs out 
@@ -193,15 +196,16 @@ zfs create -o refreservation=4G -o primarycache=none -o secondarycache=none -o m
 pprint "Done."
 echo # move to a new line
 
-pprint "Enabling auto-snapshotting for rpool/safe/[home,persist] datasets ..."
-zfs set com.sun:auto-snapshot=true rpool/safe
+pprint "Enabling auto-snapshotting for ${POOL}/safe/[home,persist] datasets ..."
+zfs set com.sun:auto-snapshot=true ${POOL}/safe
 pprint "Done."
 echo # move to a new line
 
+# skip this if you already mirrored the drives in `zpool create` above
 # attach mirrored drive
-pprint "Mirroring $ZROOT2 to $ZROOT1:"
-pprint "Running 'zpool attach -o ashift=$ASHIFT2 $POOL $ZROOT1 $ZROOT2' ..."
-zpool attach -o ashift=$ASHIFT2 $POOL $ZROOT1 $ZROOT2
+#pprint "Mirroring $ZROOT2 to $ZROOT1:"
+#pprint "Running 'zpool attach -o ashift=$ASHIFT2 $POOL $ZROOT1 $ZROOT2' ..."
+#zpool attach -o ashift=$ASHIFT2 $POOL $ZROOT1 $ZROOT2
 
 pprint "Mounting Tmpfs and ZFS datasets ..."
 mkdir -p /mnt
@@ -223,6 +227,7 @@ pprint "Done."
 echo # move to a new line
 
 pprint "Creating /mnt/build for temporarily mounting to tmpfs during nixos-rebuilds ..."
+umount /build || :
 mkdir -p /mnt/build
 #do not mount unless running nixos-rebuild, only for use in nixos-rebuild.sh script.
 pprint "Done."
@@ -252,11 +257,11 @@ HARDWARE_CONFIG=$(mktemp)
 cat <<CONFIG > "$HARDWARE_CONFIG"
 
   networking.hostName = "$HOSTNAME";
-  networking.hostId = "$HOSTID";  
+  networking.hostId = "$HOSTID";  # "$(head -c 8 /etc/machine-id)"; required by ZFS
   # prevents "multiple pools with same name" problem during boot
   # https://discourse.nixos.org/t/nixos-on-mirrored-ssd-boot-swap-native-encrypted-zfs/9215/5
-  #boot.zfs.devNodes = "/dev/disk/by-partuuid";
-  boot.zfs.devNodes = "/dev/disk/by-id";
+  boot.zfs.devNodes = "/dev/disk/by-partuuid";
+  #boot.zfs.devNodes = "/dev/disk/by-id";
 CONFIG
 
 # Add extra Tmpfs config options to the / mount section in hardware-configuration.nix

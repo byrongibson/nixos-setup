@@ -100,31 +100,32 @@
     zfs = {
       requestEncryptionCredentials = true;  # enable if using ZFS encryption, ZFS will prompt for password during boot
     };
-    loader = {
+	loader = {
       systemd-boot.enable = true;
       efi = {
-        canTouchEfiVariables = true;  # must be disabled if efiInstallAsRemovable=true
-        efiSysMountPoint = "/boot1";  # using the default /boot for this config
+      	#canTouchEfiVariables = true;  # must be disabled if efiInstallAsRemovable=true
+      	#efiSysMountPoint = "/boot/efi";  # using the default /boot for this config
       };
       grub = {
-        version = 2;
-        enable = true;  
-        device = "nodev";  # "/dev/sdx", or "nodev" for efi only
-        efiSupport = true;
-        #efiInstallAsRemovable = true;  # grub will use efibootmgr 
-        zfsSupport = true;
-        copyKernels = true;  # https://nixos.wiki/wiki/NixOS_on_ZFS
-        # mirroredBoots on z11pa-d8
-        # https://discourse.nixos.org/t/nixos-on-mirrored-ssd-boot-swap-native-encrypted-zfs/9215/5
-        # https://elis.nu/blog/2019/08/encrypted-zfs-mirror-with-mirrored-boot-on-nixos/#step-3-creating-the-file-systems
-        mirroredBoots = [
+      	version = 2;
+      	enable = true;
+		device = "nodev";  # "/dev/sdx", or "nodev" for efi only
+      	efiSupport = true;
+      	efiInstallAsRemovable = true;  # grub will use efibootmgr 
+      	zfsSupport = true;
+		copyKernels = true;  # https://nixos.wiki/wiki/NixOS_on_ZFS
+		# mirroredBoots on z11pa-d8
+  		# https://discourse.nixos.org/t/nixos-on-mirrored-ssd-boot-swap-native-encrypted-zfs/9215/5
+		mirroredBoots = [
           {
             devices = [ "nodev" ];
             path = "/boot1";
+            #path = "/dev/disk/by-id/wwn-0x5001b448b94488f8-part1";
           }
           {
             devices = [ "nodev" ];
             path = "/boot2";
+            #path = "/dev/disk/by-id/wwn-0x5001b448b6a6245a-part1";
           }
         ];
       };
@@ -187,7 +188,7 @@
       eno2.useDHCP = true;
       eno3.useDHCP = true;
       eno4.useDHCP = true;
-	  wlp175s0.useDHCP = true;
+      wlp175s0.useDHCP = true;
     };
 
   	# Open ports in the firewall.
@@ -203,9 +204,8 @@
 	# default = "http://user:password@proxy:port/";
 	# noProxy = "127.0.0.1,localhost,internal.domain";
     #};
-    
   };
-
+  
 ################################################################################
 # Persisted Artifacts
 ################################################################################
@@ -299,9 +299,9 @@
   };
   
   # Nvidia
-  boot.extraModulePackages = [ 
-  	 config.boot.kernelPackages.nvidia_x11
-    ];
+  #boot.extraModulePackages = [ 
+  #	 config.boot.kernelPackages.nvidia_x11
+  #  ];
   # Nvidia in X11
   # https://search.nixos.org/options?channel=21.05&show=services.xserver.videoDrivers&query=nvidia
   #services.xserver = {
@@ -455,7 +455,7 @@
   #};
 
 ################################################################################
-# GnuPG & SSH & Tailscale
+# GnuPG & SSH
 ################################################################################
 
   # Enable the OpenSSH daemon.
@@ -483,10 +483,7 @@
     enable = true;
     enableSSHSupport = true;
   };
-  
-  # Tailscale
-  services.tailscale.enable = true;
-  
+
 ################################################################################
 # Containers & Virtualization
 ################################################################################
@@ -666,7 +663,7 @@
   environment.systemPackages = with pkgs; [
   	
   	# system core (use these for a minimal first install)
-  	nix-index nix-diff nvd 
+  	nix-index 
   	efibootmgr efivar efitools
   	pciutils sysfsutils progress
   	coreutils-full cryptsetup
@@ -778,11 +775,7 @@
     # sed
     sd jq
   	# diff
-  	colordiff meld icdiff diffutils delta 
-  	#bsdiff ydiff patdiff vbindiff diffoscope xxdiff
-  	#dhex 
-    # patch
-    gnupatch 
+  	colordiff icdiff delta 
   	# fonts
   	#nerdfonts (broken) 
   	# benchmarking
@@ -824,7 +817,6 @@
 			
  	# Backups 
 	deja-dup 
-	diskrsync 
 	syncthing syncthingtray # syncthing-gtk (broken)
 	#grsync duplicity duply 
 	#pcloud 
@@ -974,12 +966,8 @@
     # Download
     axel httrack 
     #python39Packages.aria2p persepolis  # aria build fails
-    mimms youtube-dl tartube 
-    
-    # Torrents
-    deluge transmission-qt vuze 
-    rtorrent qbittorrent qbittorrent-nox enhanced-ctorrent 
-    megasync 
+    #mimms youtube-dl tartube 
+    #rtorrent qbittorrent #megasync 
     
 	# VNC    	
 	#x11vnc 

@@ -27,6 +27,7 @@ then
 	pprint "Dry run or rollback, skipping ZFS snapshot.";
 	sleep 5;
 	pprint "Mounting /build to tmpfs ... ";
+	umount /build || :
 	mkdir -p /build
 	mount -v -t tmpfs -o defaults,size=6G,mode=755 tmpfs /build;
 	sleep 5;
@@ -42,6 +43,7 @@ else
 	zfs snapshot -r rpool@pre-rebuild-snap-$(date +%Y%m%d-%T-%Z);
 	sleep 5;
 	pprint "Mounting /build to tmpfs ... ";
+	umount /build || :
 	mkdir -p /build
 	mount -v -t tmpfs -o defaults,size=6G,mode=755 tmpfs /build;
 	sleep 5;

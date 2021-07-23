@@ -9,7 +9,7 @@
       (modulesPath + "/installer/scan/not-detected.nix")
     ];
 
-  boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "usb_storage" "usbhid" "sd_mod" "sr_mod" ];
+  boot.initrd.availableKernelModules = [ "ahci" "xhci_pci" "ehci_pci" "nvme" "usbhid" "usb_storage" "sd_mod" "sr_mod" ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
@@ -39,27 +39,33 @@
     { device = "rpool/safe/persist";
       fsType = "zfs";
     };
+    
+  #fileSystems."/zdata1" =
+  #  { device = "dpool1/zdata1";
+  #    fsType = "zfs";
+  #    options = [ "defaults" "nofail" "x-gvfs-show" ];
+  #  };
 
   fileSystems."/boot1" =
-    { device = "/dev/disk/by-uuid/D3E7-4DDA";
-      #device = "/dev/disk/by-id/wwn-0x5001b448b94488f8-part1";
+    { #device = "/dev/disk/by-uuid/D3E7-4DDA";
+      device = "/dev/disk/by-id/wwn-0x5001b448b94488f8-part1";
       fsType = "vfat";
     };
 
   fileSystems."/boot2" =
-    { device = "/dev/disk/by-uuid/D172-570E";
-      #device = "/dev/disk/by-id/wwn-0x5001b448b6a6245a-part1";
+    { #device = "/dev/disk/by-uuid/D172-570E";
+      device = "/dev/disk/by-id/wwn-0x5001b448b6a6245a-part1";
       fsType = "vfat";
     };
 
   swapDevices = [ ];
 
-  powerManagement.cpuFreqGovernor = lib.mkDefault "powersave";
+  powerManagement.cpuFreqGovernor = lib.mkDefault "performance";
 
+  networking.hostId = "80e20d3e";  # "$(head -c 8 /etc/machine-id)"; required by ZFS
   networking.hostName = "z11pa-d8";
-  networking.hostId = "d83ce250";  
   # prevents "multiple pools with same name" problem during boot
   # https://discourse.nixos.org/t/nixos-on-mirrored-ssd-boot-swap-native-encrypted-zfs/9215/5
-  boot.zfs.devNodes = "/dev/disk/by-partuuid";
-  #boot.zfs.devNodes = "/dev/disk/by-id";
+  #boot.zfs.devNodes = "/dev/disk/by-partuuid";
+  boot.zfs.devNodes = "/dev/disk/by-id";
 }

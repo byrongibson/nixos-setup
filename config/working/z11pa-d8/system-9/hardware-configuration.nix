@@ -17,31 +17,10 @@
   fileSystems."/" =
     { device = "tmpfs";
       fsType = "tmpfs";
-      options = [ "defaults" "size=2G" "mode=755" ];
-    };
-
-  fileSystems."/boot/efi" =
-    { device = "/dev/disk/by-uuid/6086-18D9";
-      fsType = "vfat";
-    };
-
-  fileSystems."/boot" =
-    { device = "rpool/local/boot";
-      fsType = "zfs";
     };
 
   fileSystems."/nix" =
     { device = "rpool/local/nix";
-      fsType = "zfs";
-    };
-
-  fileSystems."/opt" =
-    { device = "rpool/local/opt";
-      fsType = "zfs";
-    };
-
-  fileSystems."/home" =
-    { device = "rpool/safe/home";
       fsType = "zfs";
     };
 
@@ -50,10 +29,27 @@
       fsType = "zfs";
     };
 
+  fileSystems."/home" =
+    { device = "rpool/safe/home";
+      fsType = "zfs";
+    };
+
+  fileSystems."/opt" =
+    { device = "rpool/local/opt";
+      fsType = "zfs";
+    };
+
+  fileSystems."/boot1" =
+    { device = "/dev/disk/by-uuid/D3E7-4DDA";
+      fsType = "vfat";
+    };
+
+  fileSystems."/boot2" =
+    { device = "/dev/disk/by-uuid/D172-570E";
+      fsType = "vfat";
+    };
+
   swapDevices = [ ];
 
   powerManagement.cpuFreqGovernor = lib.mkDefault "powersave";
-  networking.hostId = "0a3b60ed";
-  networking.hostName = "z11pa-d8";
-  boot.zfs.devNodes = "/dev/disk/by-uuid/13021142488039143982";
 }

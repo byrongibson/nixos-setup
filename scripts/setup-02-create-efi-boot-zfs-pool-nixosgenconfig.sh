@@ -29,6 +29,7 @@
 # └─sda2           	rpool ZFS POOL
 #
 # for pool naming convention, use zfs-p0, zfs-p1, zfs-p2, etc.
+# alternately, rpoolX for root pools, dpoolX for data pools
 # for device naming convention, use zfs-d0, zfs-d1, zfs-d2, etc.
 #
 # Mount Layout:
@@ -60,6 +61,7 @@
 # Some ZFS properties cannot be changed after the pool and/or datasets are created.  Some discussion on this:
 # https://www.reddit.com/r/zfs/comments/nsc235/what_are_all_the_properties_that_cant_be_modified/
 # `ashift` is one of these properties, but is easy to determine.  Use the following commands:
+# lshw -class disk
 # disk logical blocksize:  `$ sudo blockdev --getbsz /dev/sdX` (ashift)
 # disk physical blocksize: `$ sudo blockdev --getpbsz /dev/sdX` (not ashift but interesting)
 
@@ -150,7 +152,7 @@ pprint "Creating ZFS pool on $ZFS1 ..."
 # more info on pool properties:
 # https://nixos.wiki/wiki/NixOS_on_ZFS#Dataset_Properties
 # https://jrs-s.net/2018/08/17/zfs-tuning-cheat-sheet/
-zpool create -f	-m none	-R /mnt	\
+zpool create -f -t $POOL -m none -R /mnt	\
 	-o ashift=$ASHIFT1			\
 	-o autotrim=on 				\
 	-o listsnapshots=on			\
@@ -160,6 +162,7 @@ zpool create -f	-m none	-R /mnt	\
 	-O encryption=on			\
 	-O keylocation=prompt		\
 	-O keyformat=passphrase 	\
+	-O mountpoint=none			\
 	-O canmount=off				\
 	-O atime=off				\
 	-O relatime=on 				\
@@ -186,8 +189,8 @@ zfs create -o refreservation=4G -o primarycache=none -o secondarycache=none -o m
 pprint "Done."
 echo # move to a new line
 
-pprint "Enabling auto-snapshotting for rpool/safe/[home,persist] datasets ..."
-zfs set com.sun:auto-snapshot=true rpool/safe
+pprint "Enabling auto-snapshotting for ${POOL}/safe/[home,persist] datasets ..."
+zfs set com.sun:auto-snapshot=true ${POOL}/safe
 pprint "Done."
 echo # move to a new line
 
@@ -214,6 +217,7 @@ pprint "Done."
 echo # move to a new line
 
 pprint "Creating /mnt/build for temporarily mounting to tmpfs during nixos-rebuilds ..."
+umount /build || :
 mkdir -p /mnt/build
 #do not mount unless running nixos-rebuild, only for use in nixos-rebuild.sh script.
 pprint "Done."
@@ -243,12 +247,12 @@ HARDWARE_CONFIG=$(mktemp)
 cat <<CONFIG > "$HARDWARE_CONFIG"
 
   networking.hostName = "$HOSTNAME";
-  networking.hostId = "$HOSTID";  
+  networking.hostId = "$HOSTID";  # "$(head -c 8 /etc/machine-id)"; required by ZFS
   #boot.zfs.devNodes = "$ZFS";
   # prevents "multiple pools with same name" problem during boot
   # https://discourse.nixos.org/t/nixos-on-mirrored-ssd-boot-swap-native-encrypted-zfs/9215/5
-  #boot.zfs.devNodes = "/dev/disk/by-partuuid";
-  boot.zfs.devNodes = "/dev/disk/by-id";
+  boot.zfs.devNodes = "/dev/disk/by-partuuid";
+  #boot.zfs.devNodes = "/dev/disk/by-id";
 CONFIG
 
 # Add extra Tmpfs config options to the / mount section in hardware-configuration.nix
